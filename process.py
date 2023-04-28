@@ -41,13 +41,17 @@ def getStartEnd(tempData,THRESHOLD):
 
             if i == 1:
                 finalData.append([startTime, tempData.loc[i,'end_time_s'], tempData.loc[i,'pitch_midi']])
+                tempData = tempdata
             else:
                 finalData.append([tempData.loc[i-1,'start_time_s'], tempData.loc[i, 'end_time_s'], tempData.loc[i, 'pitch_midi']])
             startTime=tempData.loc[i,'start_time_s']
-            print("new start time is")
-            print(startTime)
-    #finalData.append([tempData.loc[i-1, 'start_time_s'], tempData.loc[i, 'end_time_s'], tempData.loc[i,'pitch_midi']])
-    #finalData=finalData.reset_index()
+
+
+
+            #delete both old rows after appending in finaldata
+
+
+
     return(pd.DataFrame(finalData))
 
 
@@ -56,12 +60,13 @@ finalData=pd.DataFrame()
 print("finalData:")
 print(finalData)
 
+print("tempData:")
+print(tempData)
+
 #call function and place results back into itself
 finalData=pd.concat([finalData,getStartEnd(data,0.02)])
 print("final results")
 print(finalData)
 
-print("final results")
-print(finalData)
 
 #replace split notes from from original
