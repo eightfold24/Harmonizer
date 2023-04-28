@@ -39,12 +39,6 @@ def getStartEnd(tempData,THRESHOLD):
     for i in range(1,len(tempData)):
         if THRESHOLD > tempData.loc[i, 'diff'] >= 0 and (tempData.loc[i, 'pitch_midi'] == tempData.loc[i - 1, 'pitch_midi']):
 
-            print("pitch1 start was ")
-            print(tempData.loc[i, 'start_time_s'])
-            print(tempData.loc[i, 'pitch_midi'])
-            print(" pitch2 end was ")
-            print(tempData.loc[i, 'end_time_s'])
-            print(tempData.loc[i - 1, 'pitch_midi'])
             if i == 1:
                 finalData.append([startTime, tempData.loc[i,'end_time_s'], tempData.loc[i,'pitch_midi']])
             else:
@@ -64,6 +58,9 @@ print(finalData)
 
 #call function and place results back into itself
 finalData=pd.concat([finalData,getStartEnd(data,0.02)])
+print("final results")
+print(finalData)
+
 print("final results")
 print(finalData)
 
