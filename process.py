@@ -1,74 +1,146 @@
 import math
 import pandas as pd
 
+# read in csv and ignore pitch bend section
 df = pd.read_csv('./545blow_basic_pitch.csv', usecols=range(4))
-print("original dataset")
-print(df.to_string())
 
-#filtering out notes that are too quiet
+# filtering out notes that are too quiet
 df = df[df.velocity >= 55]
 
-#sort results by pitch and by start time
-df = df.sort_values(['pitch_midi', 'end_time_s'],ascending=[True,True])
-print("sorted results of dataframe")
+# sort results by pitch and by start time
+df = df.sort_values(['pitch_midi', 'end_time_s'], ascending=[True, True])
+print("sorted original data:")
 print(df.to_string())
 
-##create dataframe of notes that are identical and have less than 20ms release and reapply (most likely the same note)
-#temp data converter
-data=df
+# create dataframe of notes that are identical and have less than 20ms release and reapply (most likely the same note)
 
-#creating differential column for dataset
-diffData=[]
+data = df
+
+# creating differential column for dataset
+diffData = []
 for i in range(1, len(data)):
-    diffData.append((data.iloc[i,0]) - (data.iloc[i-1,1]))
+    diffData.append((data.iloc[i, 0]) - (data.iloc[i - 1, 1]))
 
-data['diff']=[0] + diffData
-print
+data['diff'] = [0] + diffData
+print("data with appended diff column:")
 print(data)
 
 
-def getStartEnd(tempData,THRESHOLD):
-    tempData=tempData.reset_index()
-    finalData=[]
-    startTime=tempData.loc[0,'start_time_s']
-    print(tempData.loc[0,'start_time_s'])
+def getStartEnd(tempData, THRESHOLD):
+    tempData = tempData.reset_index(drop=True)
+    finalData = pd.DataFrame(columns=['start_time_s','end_time_s','pitch_midi','note_group'])
+    startTime = tempData.loc[0, 'start_time_s']
+    is_duplicates = True
 
-    print("tempData:")
-    print(tempData)
+    while is_duplicates:
+        templength = len(tempData)
+        tempData = tempData.reset_index(drop=True)
+        print("tempData fed into note splicer:")
+        print(tempData)
 
-    for i in range(1,len(tempData)):
-        if THRESHOLD > tempData.loc[i, 'diff'] >= 0 and (tempData.loc[i, 'pitch_midi'] == tempData.loc[i - 1, 'pitch_midi']):
+        for i in range(1, templength):
+            if THRESHOLD > tempData.loc[i, 'diff'] >= 0 and (tempData.loc[i, 'pitch_midi'] == tempData.loc[i - 1, 'pitch_midi']):
 
-            if i == 1:
-                finalData.append([startTime, tempData.loc[i,'end_time_s'], tempData.loc[i,'pitch_midi'],i])
+                if i == 1:
+                    #finalData.append([startTime, tempData.loc[i, 'end_time_s'], tempData.loc[i, 'pitch_midi'], i])
+                    finalData.loc[i-1] = [startTime, tempData.loc[i, 'end_time_s'], tempData.loc[i, 'pitch_midi'], i]
+                else:
+                    #finalData.append([tempData.loc[i - 1, 'start_time_s'], tempData.loc[i, 'end_time_s'], tempData.loc[i, 'pitch_midi'],i])
+                    finalData.loc[i-1] = [tempData.loc[i - 1, 'start_time_s'], tempData.loc[i, 'end_time_s'], tempData.loc[i, 'pitch_midi'],i]
+                startTime = tempData.loc[i, 'start_time_s']
+
             else:
-                finalData.append([tempData.loc[i-1,'start_time_s'], tempData.loc[i, 'end_time_s'], tempData.loc[i, 'pitch_midi'],i])
+                #finalData.append([tempData.loc[i,'start_time_s'], tempData.loc[i, 'end_time_s'], tempData.loc[i, 'pitch_midi'],420])
+                finalData.loc[i-1] = [tempData.loc[i,'start_time_s'], tempData.loc[i, 'end_time_s'], tempData.loc[i, 'pitch_midi'],420]
 
-            startTime=tempData.loc[i,'start_time_s']
+                # finalData.append([tempData.loc[i-1, 'start_time_s'], tempData.loc[i, 'end_time_s'], tempData.loc[i,'pitch_midi']])
 
-            #delete both old rows after appending in finaldata
+        print("finaldata dump")
+        print(finalData)
+        output = pd.DataFrame.from_records(data)
 
-            print("new start time is")
-            print(startTime)
-        else:
-            #finalData.append([tempData.loc[i,'start_time_s'], tempData.loc[i, 'end_time_s'], tempData.loc[i, 'pitch_midi'],420])
-            print("loopfixer")
+        finalData = finalData.drop_duplicates(subset='start_time_s', keep="last")
+        print("final data from splicing notes(output):")
+        print(finalData)
+        is_duplicates = finalData.duplicated(subset=['start_time_s']).any()
+        print(is_duplicates)
+        tempData = finalData
 
-    #finalData.append([tempData.loc[i-1, 'start_time_s'], tempData.loc[i, 'end_time_s'], tempData.loc[i,'pitch_midi']])
-    #finalData=finalData.reset_index()
-    return(pd.DataFrame(finalData))
-
-
-finalData=pd.DataFrame()
+    return finalData
+    #return pd.DataFrame(finalData)
 
 
-#call function and place results back into itself
-finalData=pd.concat([finalData,getStartEnd(data,0.02)])
-print("final results")
+finalData = pd.DataFrame()
+
+# call function and place results back into itself
+#finalData = pd.concat([finalData, getStartEnd(data, 0.02)])
+finalData = getStartEnd(data, 0.02)
+
+#finalData.columns = ['start_time_s', 'end_time_s', 'pitch_midi', 'note_group']
+finalData = finalData.sort_values(['start_time_s'])
+# finalData = finalData.sort_values(['start_time_s'], ascending=[True])
+
+print("final data without repeats is:")
 print(finalData)
 
 
-#replace split notes from from original
+def groupNotes(tempdata):
+    notegroup = 1
+    tempdata = tempdata.reset_index(drop=True)
+    nextstart = 0
+    indexcount = tempdata.index.size - 1
+
+    print("tempData fed into note grouper:")
+    print(tempdata)
+
+    for i in tempdata.index:
+        start = tempdata.loc[i, 'start_time_s']
+        end = tempdata.loc[i, 'end_time_s']
+        interval = pd.Interval(left=start, right=end, closed='both')
+
+        if i != indexcount:
+            nextstart = tempdata.loc[i + 1, 'start_time_s']
+
+            if i == 0:
+                tempdata.loc[i, 'note_group'] = notegroup
+
+
+            if nextstart in interval:
+                tempdata.loc[i+1, 'note_group'] = notegroup
+
+            else:
+                notegroup = notegroup + 1
+                tempdata.loc[i+1, 'note_group'] = notegroup
+
+        else:
+            print("reached last note")
+
+    return pd.DataFrame(tempdata)
+
+
+groupeddata = pd.DataFrame()
+groupeddata = groupNotes(finalData)
+groupeddata['pitch_midi'] = groupeddata['pitch_midi'].astype('int')
+groupeddata['note_group'] = groupeddata['note_group'].astype('int')
+print(groupeddata)
+
+
+# replace split notes from original
+
+# get mean of each note group
+
+def noteEncoding(tempdata):
+    print("started encoding to harmonica notation")
+    notesum = tempdata['note_group'].iloc[-1]
+    print("notesum:", notesum)
+    for i in range(1, notesum):
+        print(tempdata)
+        tempdata = tempdata.groupby('note_group')['pitch_midi'].mean()
+
+    return tempdata
+
+
+print(noteEncoding(groupeddata))
 """
 finalData.between(0,1).any()
 
@@ -93,10 +165,7 @@ for i in finalData.index:
         if (start > other_start) & (start < other_end):
             overlaps += 1
 """
-finalData.columns = ['start_time_s', 'end_time_s', 'pitch_midi', 'note_group']
-finalData = finalData.sort_values(['start_time_s'],ascending=[False])
 
-print(finalData)
 """
 for f in range(1,len(finalData)):
     start = finalData.loc[f, 'start_time_s']
