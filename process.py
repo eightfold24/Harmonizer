@@ -28,7 +28,7 @@ print(data)
 
 def getStartEnd(tempData, THRESHOLD):
     tempData = tempData.reset_index(drop=True)
-    finalData = pd.DataFrame(columns=['start_time_s','end_time_s','pitch_midi','note_group'])
+    finalData = pd.DataFrame(columns=['start_time_s','end_time_s','pitch_midi','note_group', 'total_length'])
     startTime = tempData.loc[0, 'start_time_s']
     is_duplicates = True
 
@@ -43,15 +43,15 @@ def getStartEnd(tempData, THRESHOLD):
 
                 if i == 1:
                     #finalData.append([startTime, tempData.loc[i, 'end_time_s'], tempData.loc[i, 'pitch_midi'], i])
-                    finalData.loc[i-1] = [startTime, tempData.loc[i, 'end_time_s'], tempData.loc[i, 'pitch_midi'], i]
+                    finalData.loc[i-1] = [startTime, tempData.loc[i, 'end_time_s'], tempData.loc[i, 'pitch_midi'], i,i]
                 else:
                     #finalData.append([tempData.loc[i - 1, 'start_time_s'], tempData.loc[i, 'end_time_s'], tempData.loc[i, 'pitch_midi'],i])
-                    finalData.loc[i-1] = [tempData.loc[i - 1, 'start_time_s'], tempData.loc[i, 'end_time_s'], tempData.loc[i, 'pitch_midi'],i]
+                    finalData.loc[i-1] = [tempData.loc[i - 1, 'start_time_s'], tempData.loc[i, 'end_time_s'], tempData.loc[i, 'pitch_midi'],i,i]
                 startTime = tempData.loc[i, 'start_time_s']
 
             else:
                 #finalData.append([tempData.loc[i,'start_time_s'], tempData.loc[i, 'end_time_s'], tempData.loc[i, 'pitch_midi'],420])
-                finalData.loc[i-1] = [tempData.loc[i,'start_time_s'], tempData.loc[i, 'end_time_s'], tempData.loc[i, 'pitch_midi'],420]
+                finalData.loc[i-1] = [tempData.loc[i,'start_time_s'], tempData.loc[i, 'end_time_s'], tempData.loc[i, 'pitch_midi'],420,i]
 
                 # finalData.append([tempData.loc[i-1, 'start_time_s'], tempData.loc[i, 'end_time_s'], tempData.loc[i,'pitch_midi']])
 
@@ -134,9 +134,13 @@ def noteEncoding(tempdata):
     notesum = tempdata['note_group'].iloc[-1]
     print("notesum:", notesum)
     for i in range(1, notesum):
+        print("lowest start time for note group", i, "is:")
+        #print(tempdata.loc[tempdata['start_time_s'].idxmin()]['note_group'])
         print(tempdata)
-        tempdata = tempdata.groupby('note_group')['pitch_midi'].mean()
 
+
+    tempdata = tempdata.groupby('note_group',)['pitch_midi'].mean()
+    #df.groupby('').mean().reset_index()
     return tempdata
 
 
