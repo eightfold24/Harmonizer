@@ -2,7 +2,7 @@ import math
 import pandas as pd
 
 # read in csv and ignore pitch bend section
-df = pd.read_csv('./545blow_basic_pitch.csv', usecols=range(4))
+df = pd.read_csv('./pianoman_basic_pitch.csv', usecols=range(4))
 
 # filtering out notes that are too quiet
 df = df[df.velocity >= 55]
@@ -130,70 +130,60 @@ print(groupeddata)
 # get mean of each note group
 
 def noteEncoding(tempdata):
+    loopdf = pd.DataFrame(tempdata, columns=['start_time_s','end_time_s','pitch_midi','note_group', 'total_length','direction'])
+    finaldata = pd.DataFrame(columns=['start_time_s','end_time_s','avg_pitch_midi','note_group', 'total_length','direction'])
+    print("loopdf:", loopdf)
     print("started encoding to harmonica notation")
+
     notesum = tempdata['note_group'].iloc[-1]
-    print("notesum:", notesum)
-    for i in range(1, notesum):
-        print("lowest start time for note group", i, "is:")
-        #print(tempdata.loc[tempdata['start_time_s'].idxmin()]['note_group'])
-        print(tempdata)
+
+    blowmap = pd.read_csv('./blowencode.csv')
+    drawmap = pd.read_csv('./drawencode.csv')
+    print("mapping frame is")
+    print(blowmap)
+    noteval = 77
+    idx = blowmap['note_avg'].sub(noteval).abs().idxmin()
+    df1 = pd.DataFrame(columns=['actual_note'])
+    df1 = blowmap.loc[[idx],'actual_note']
+    print(df1)
+
+    for i in range(1, notesum+1):
+        loopdf = pd.DataFrame(tempdata, columns=['start_time_s','end_time_s','pitch_midi','note_group', 'total_length', 'direction'])
+        loopdf = loopdf.loc[loopdf['note_group'] == i]
+        notemean = loopdf['pitch_midi'].mean()
+        starttime = loopdf['start_time_s'].min()
+        endtime = loopdf['end_time_s'].max()
+        totallength = endtime - starttime
+
+        # if the notes in a note group are any possible blow value, set variable to true
+        blow = loopdf['pitch_midi'].isin([60, 64, 67, 72, 76, 79, 84, 88, 91]).any()
+
+        print("direction is:", blow)
+        if blow:
+
+            idx = blowmap['note_avg'].sub(notemean).abs().idxmin()
+
+            df1 = blowmap.loc[[idx], 'actual_note']
+            acval = df1.iloc[[0][0]]
+            print("acval is:", acval)
+            #print(df1)
+        else:
+            idx = drawmap['note_avg'].sub(notemean).abs().idxmin()
+
+            df1 = drawmap.loc[[idx], 'actual_note']
+            acval = df1.iloc[[0][0]]
+            print("acval is:",acval)
+            #print(df1)
+
+        print("notemean:",notemean,"start time:",starttime, "end time:", endtime,"note length:",totallength,"blow:",blow)
+        list_row = [starttime, endtime, acval, int(i), totallength, blow]
+        finaldata.loc[len(finaldata)] = list_row
+        print(finaldata)
 
 
-    tempdata = tempdata.groupby('note_group',)['pitch_midi'].mean()
-    #df.groupby('').mean().reset_index()
-    return tempdata
 
+    finaldata.reset_index(drop=True)
+    return finaldata
 
+print("data to be passed into the frontend:")
 print(noteEncoding(groupeddata))
-"""
-finalData.between(0,1).any()
-
-patients_data_list = []
-
-for patient_id, patient_df in gb_patient:
-   patient_df = patient_df.sort_values(by=['Date', 'Time'])
-   patient_data = {
-       "patient_id": patient_id,
-       "start_time": patient_df.Date.values[0] + patient_df.Time.values[0],
-       "end_time": patient_df.Date.values[-1] + patient_df.Time.values[-1]
-   }
-
-   patients_data_list.append(patient_data)
-
-new_df = pd.DataFrame(patients_data_list)
-
-finalData = finalData.sort_values()
-for i in finalData.index:
-        other_start = df.loc[i, 'start_time_s']
-        other_end = df.loc[i, 'end_time_s']
-        if (start > other_start) & (start < other_end):
-            overlaps += 1
-"""
-
-"""
-for f in range(1,len(finalData)):
-    start = finalData.loc[f, 'start_time_s']
-    end = finalData.loc[f, 'end_time_s']
-    interval = pd.Interval(left=start, right=end)
-    print(1 in interval)
-
-    """
-"""
-def groupNotes(tempData):
-    #tempData = tempData.reset_index()
-    print(tempData)
-    for f in range(0,len(tempData)):
-        #start = tempData.loc[[f+1], ['start_time_s']]
-        print(start)
-        #end = tempData.loc[f+1, 'end_time_s']
-
-        #interval = pd.Interval(left=start, right=end)
-        #nextstartval = finalData.loc[f, 'start_time_s']
-        #print(nextstartval)
-        #if nextstartval in interval == True:
-        #    print ("index ")
-
-    return(pd.DataFrame(tempData))
-
-finalData=groupNotes(finalData)
-"""
